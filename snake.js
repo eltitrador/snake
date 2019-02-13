@@ -15,6 +15,8 @@ const RIGHT = 1;
 const DOWN = 2;
 const LEFT = 3;
 
+const SPEEDUP = 10; // duration in ms to speed up each frame
+
 function Node(x, y) {
     this.x = x;
     this.y = y;
@@ -72,15 +74,20 @@ Node.prototype.getNextPosition = function(direction) {
     return [x, y];
 }
 
-Node.prototype.doesIntersect = function() {
+Node.prototype.occupies = function(x, y) {
     let current = this.next;
     while (current != null) {
-        if (this.x == current.x && this.y == current.y) {
+        if (x == current.x && y == current.y) {
             return true;
         }
         current = current.next;
     }
     return false;
+};
+
+
+Node.prototype.doesIntersect = function() {
+    return this.occupies(this.x, this.y);
 };
 
 function Game() {
@@ -104,15 +111,26 @@ function Game() {
     };
     this.spawnFood();
 
-    this.interval = setInterval(function() {
-        game.advance();
-        game.draw();
-    }, 100);
+    this.speed = 100;
+    this.step();
 }
 
+Game.prototype.step = function() {
+    this.advance();
+    this.draw();
+    if (this.alive)
+        setTimeout(this.step.bind(this), this.speed);
+};
+
 Game.prototype.spawnFood = function() {
-    this.food.x = Math.floor(Math.random() * AREA_WIDTH);
-    this.food.y = Math.floor(Math.random() * AREA_HEIGHT);
+    let x, y;
+    do {
+        x = Math.floor(Math.random() * AREA_WIDTH);
+        y = Math.floor(Math.random() * AREA_HEIGHT);
+    } while (this.head.occupies(x, y));
+
+    this.food.x = x;
+    this.food.y = y;
 };
 
 Game.prototype.onKeyPress = function(e) {
@@ -183,10 +201,13 @@ Game.prototype.advance = function() {
             this.head.addSegments(1);
             this.length++;
             this.spawnFood();
+
+            if (this.length % 4 == 0) {
+                this.speed -= SPEEDUP;
+            }
         }
         if (this.head.doesIntersect()) {
             this.alive = false;
-            clearInterval(this.interval);
             this.displayGameOver();
         }
     }
